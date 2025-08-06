@@ -6,6 +6,7 @@ const lc = lightningChart({
         })
 const chart = lc
     .ChartXY({
+        legend: { visible: false },
         defaultAxisX: { type: 'linear-highPrecision' },
         theme: Themes[new URLSearchParams(window.location.search).get('theme') || 'darkGold'] || undefined,
     })
@@ -21,26 +22,18 @@ let yPrev = 100
 for (let i = 0; i < 1000; i += 1) {
     const x = Date.UTC(2023, 0, i)
     const y = yPrev + (Math.random() * 2 - 1)
-    const id = i
     yPrev = y
-    data.push({ x, y, id })
+    data.push({ x, y })
 }
 
-const lineSeries = chart
-    .addPointLineAreaSeries({
-        dataPattern: 'ProgressiveX',
-        colors: true,
-        ids: true,
-    })
-    .appendJSON(data, { x: 'x', y: 'y', id: 'id' })
-    .setPointerEvents(false)
+const lineSeries = chart.addLineSeries()
 const colorNormal = lineSeries.getStrokeStyle().getFillStyle().getColor()
 const colorUnselected = chart.getTheme().examples.unfocusedDataColor
 const colorSelected = chart.getTheme().examples.positiveFillStyle.getColor()
 lineSeries
-    .setAreaFillStyle(emptyFill)
+    .setPointerEvents(false)
     .setStrokeStyle((stroke) => stroke.setFillStyle(new IndividualPointFill()))
-    .fill({ color: colorNormal })
+    .appendJSON(data, undefined, { color: colorNormal })
 
 // Setup custom user interaction
 const band = axisX.addBand(false).setVisible(false)
@@ -60,13 +53,14 @@ chart.seriesBackground.addEventListener('pointerdown', (event) => {
         const xMin = Math.min(band.getValueStart(), band.getValueEnd())
         const xMax = Math.max(band.getValueStart(), band.getValueEnd())
         // NOTE: In this example, could just as well use `data` variable directly. But showing use of `readback` for example purposes.
+        // Alternatively could directly pass x range to readBack onlyInRange parameter, but again, showing more flexible use of custom logic for example purposes.
         const dataSet = lineSeries.readBack()
-        const idsInsideBand = []
+        const alteredSampleIndexes = []
         for (let i = 0; i < dataSet.xValues.length; i += 1) {
             const x = dataSet.xValues[i]
-            if (x >= xMin && x <= xMax) idsInsideBand.push(dataSet.ids[i])
+            if (x >= xMin && x <= xMax) alteredSampleIndexes.push(dataSet.iSampleFirst + i)
         }
-        lineSeries.fill({ color: colorUnselected }).alterSamplesByID(idsInsideBand, { color: colorSelected })
+        lineSeries.fill({ color: colorUnselected }).alterSamplesByIndex(alteredSampleIndexes, { color: colorSelected })
         document.body.removeEventListener('pointermove', handleMove)
         document.body.removeEventListener('pointerup', handleUp)
     }
